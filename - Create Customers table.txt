@@ -1,0 +1,120 @@
+- Create Customers table
+CREATE TABLE Customers (
+    CustomerID INT PRIMARY KEY AUTO_INCREMENT, -- Unique identifier for each customer
+    CustomerName VARCHAR(100) NOT NULL,       -- Name of the customer
+    Email VARCHAR(100) UNIQUE NOT NULL,        -- Customer's email, must be unique
+    Phone VARCHAR(15),                         -- Optional phone number
+    SignupDate DATE DEFAULT CURRENT_DATE       -- Date when the customer signed up
+);
+
+-- Create Products table
+CREATE TABLE Products (
+    ProductID INT PRIMARY KEY AUTO_INCREMENT,  -- Unique identifier for each product
+    ProductName VARCHAR(100) NOT NULL,         -- Name of the product
+    Category VARCHAR(50),                       -- Product category (e.g., Electronics, Clothing)
+    Price DECIMAL(10, 2) NOT NULL               -- Price of the product
+);
+
+-- Create Sales table
+CREATE TABLE Sales (
+    SaleID INT PRIMARY KEY AUTO_INCREMENT,      -- Unique identifier for each sale
+    SaleDate DATE NOT NULL,                     -- Date of the sale
+    CustomerID INT,                             -- Foreign key referencing Customers
+    ProductID INT,                              -- Foreign key referencing Products
+    Quantity INT NOT NULL,                      -- Number of products sold
+    TotalAmount DECIMAL(10, 2) NOT NULL,       -- Total amount for the sale (Quantity * Price)
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID), -- Link to Customers table
+    FOREIGN KEY (ProductID) REFERENCES Products(ProductID)    -- Link to Products table
+);
+
+-- Create SalesForecast table
+CREATE TABLE SalesForecast (
+    ForecastID INT PRIMARY KEY AUTO_INCREMENT,  -- Unique identifier for each forecast
+    ProductID INT,                              -- Foreign key referencing Products
+    ForecastDate DATE NOT NULL,                 -- Date for which the forecast is made
+    PredictedSales INT NOT NULL,                -- Predicted number of sales
+    FOREIGN KEY (ProductID) REFERENCES Products(ProductID)  -- Link to Products table);
+-- Inserting sample data into Customers
+INSERT INTO Customers (CustomerName, Email, Phone) VALUES
+('John Doe', 'john@example.com', '555-1234'),
+('Jane Smith', 'jane@example.com', '555-5678'),
+('Alice Johnson', 'alice@example.com', '555-8765');
+
+-- Inserting sample data into Products
+INSERT INTO Products (ProductName, Category, Price) VALUES
+('Laptop', 'Electronics', 999.99),
+('T-shirt', 'Clothing', 19.99),
+('Headphones', 'Electronics', 89.99);
+
+-- Inserting sample data into Sales
+INSERT INTO Sales (SaleDate, CustomerID, ProductID, Quantity, TotalAmount) VALUES
+('2024-09-01', 1, 1, 1, 999.99),
+('2024-09-02', 2, 2, 2, 39.98),
+('2024-09-03', 1, 3, 1, 89.99),
+('2024-09-04', 3, 1, 1, 999.99);
+
+-- Inserting sample data into SalesForecast
+INSERT INTO SalesForecast (ProductID, ForecastDate, PredictedSales) VALUES
+(1, '2024-10-01', 50),
+(2, '2024-10-01', 100),
+(3, '2024-10-01', 75);
+Total Sales by Month
+SELECT DATE_FORMAT(SaleDate, '%Y-%m') AS SaleMonth, 
+       SUM(TotalAmount) AS TotalSales
+FROM Sales
+GROUP BY SaleMonth
+ORDER BY SaleMonth;
+
+Top Customers by Total Spending
+SELECT c.CustomerName, 
+       SUM(s.TotalAmount) AS TotalSpent
+FROM Sales s
+JOIN Customers c ON s.CustomerID = c.CustomerID
+GROUP BY c.CustomerName
+ORDER BY TotalSpent DESC
+LIMIT 5;
+
+Product Sales Breakdown
+SELECT p.ProductName, 
+       SUM(s.Quantity) AS TotalQuantitySold, 
+       SUM(s.TotalAmount) AS TotalSales
+FROM Sales s
+JOIN Products p ON s.ProductID = p.ProductID
+GROUP BY p.ProductName
+ORDER BY TotalSales DESC;
+
+Sales Performance Comparison by Customer
+SELECT c.CustomerName, 
+       COUNT(s.SaleID) AS NumberOfPurchases, 
+       SUM(s.TotalAmount) AS TotalSales
+FROM Sales s
+JOIN Customers c ON s.CustomerID = c.CustomerID
+GROUP BY c.CustomerName
+ORDER BY TotalSales DESC;
+
+Sales Trends for a Specific Product (Replace 1 with desired ProductID)
+SELECT DATE_FORMAT(SaleDate, '%Y-%m-%d') AS SaleDate, 
+       SUM(TotalAmount) AS DailySales
+FROM Sales
+WHERE ProductID = 1  -- Change as needed
+GROUP BY SaleDate
+ORDER BY SaleDate;
+
+Percentage of Sales by Product Category
+SELECT p.Category, 
+       SUM(s.TotalAmount) AS TotalSales,
+       (SUM(s.TotalAmount) / (SELECT SUM(TotalAmount) FROM Sales) * 100) AS SalesPercentage
+FROM Sales s
+JOIN Products p ON s.ProductID = p.ProductID
+GROUP BY p.Category
+ORDER BY TotalSales DESC;
+
+Forecast Accuracy Analysis
+SELECT p.ProductName, 
+       COALESCE(SUM(s.TotalAmount), 0) AS ActualSales, 
+       f.PredictedSales,
+       (COALESCE(SUM(s.TotalAmount), 0) - f.PredictedSales) AS Difference
+FROM SalesForecast f
+JOIN Products p ON f.ProductID = p.ProductID
+LEFT JOIN Sales s ON p.ProductID = s.ProductID AND f.ForecastDate = DATE(s.SaleDate)
+GROUP BY p.ProductName, f.PredictedSales;
